@@ -11,6 +11,7 @@ from geopy.distance import geodesic
 import csv
 from typing import List
 from collections import defaultdict
+import ast
 # import folium
 # from folium.plugins import MarkerCluster
 import random
@@ -363,26 +364,38 @@ def parse_csv_to_trips(csv_file_path: str) -> List[Trip]:
     trips = defaultdict(list)
     current_trip_data = {}
 
+    def safe_float(value):
+        try:
+            return float(value)
+        except ValueError:
+            return None  # or you can return 0, depending on your needs
+
     with open(csv_file_path, mode='r') as file:
         reader = csv.reader(file)
         header = next(reader)  # Skip the header
 
         for row in reader:
+            if len(row) < 11:  # Check if the row has fewer than the expected number of columns
+                continue  # Skip this row if it's incomplete
+
             # Extract data from each row
             tripId = row[0]
-            shipmentId = int(row[1])
-            latitude = float(row[2])
-            longitude = float(row[3])
+            shipmentIds = ast.literal_eval(row[1])  # Convert the string list into an actual list
+            latitudes = ast.literal_eval(row[2])  # Convert the string list into an actual list
+            longitudes = ast.literal_eval(row[3])  # Convert the string list into an actual list
             timeSlot = row[4]
-            mstDistance = float(row[5])
-            tripTime = float(row[6])
+            mstDistance = safe_float(row[5])
+            tripTime = safe_float(row[6])
             vehicleType = row[7]
-            capacityUtilization = float(row[8])
-            timeUtilization = float(row[9])
-            coverageUtilization = float(row[10])
+            capacityUtilization = safe_float(row[8])  # Use safe_float to handle invalid entries
+            timeUtilization = safe_float(row[9])
+            coverageUtilization = safe_float(row[10])
 
-            # Create a Shipment object
-            shipment = Shipment(shipmentId, (latitude, longitude), timeSlot)
+            # Create Shipment objects for each shipmentId
+            shipments = []
+            for shipmentId, latitude, longitude in zip(shipmentIds, latitudes, longitudes):
+                shipment = Shipment(shipmentId, (latitude, longitude), timeSlot)
+                shipments.append(shipment)
 
             # Create or append to the Trip data
             if tripId not in current_trip_data:
@@ -395,7 +408,7 @@ def parse_csv_to_trips(csv_file_path: str) -> List[Trip]:
                     'timeUtilization': timeUtilization,
                     'coverageUtilization': coverageUtilization
                 }
-            current_trip_data[tripId]['shipments'].append(shipment)
+            current_trip_data[tripId]['shipments'].extend(shipments)
 
         # Convert dictionary to list of Trip objects
         trip_list = []
