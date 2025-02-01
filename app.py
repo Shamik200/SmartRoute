@@ -8,6 +8,9 @@ import pandas as pd
 import numpy as np
 import math
 from geopy.distance import geodesic
+import csv
+from typing import List
+from collections import defaultdict
 # import folium
 # from folium.plugins import MarkerCluster
 import random
@@ -16,33 +19,6 @@ app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-
-
-class Trip:
-    def _init_(self, trip_id, shipment_ids, latitudes, longitudes, time_slot, num_shipments, mst_dist, trip_time, vehicle_type):
-        self.trip_id = trip_id
-        self.shipment_ids = shipment_ids
-        self.latitudes = latitudes
-        self.longitudes = longitudes
-        self.time_slot = time_slot
-        self.num_shipments = num_shipments
-        self.mst_dist = mst_dist
-        self.trip_time = trip_time
-        self.vehicle_type = vehicle_type
-
-    def to_dict(self):
-        """Convert Trip object to dictionary for DataFrame conversion."""
-        return {
-            'trip_id': self.trip_id,
-            'shipment_ids': self.shipment_ids,
-            'latitudes': self.latitudes,
-            'longitudes': self.longitudes,
-            'time_slot': self.time_slot,
-            'num_shipments': self.num_shipments,
-            'mst_dist': self.mst_dist,
-            'trip_time': self.trip_time,
-            'vehicle_type': self.vehicle_type
-        }
 
 # class Shipment:
 #     def __init__(self, shipment_id, latitude, longitude, time):
@@ -61,7 +37,32 @@ class Trip:
 #         self.min_speed = min_speed
 #         self.max_speed = max_speed
 
+class Shipment:
+    def __init__(self, id: int, location: tuple, timeSlot: str):
+        self.id = id
+        self.location = location
+        self.timeSlot = timeSlot
 
+    def __repr__(self):
+        return f"Shipment(id={self.id}, location={self.location}, timeSlot={self.timeSlot})"
+
+class Trip:
+    def __init__(self, tripId: str, shipments: List[Shipment], mstDistance: float, tripTime: float,
+                 vehicleType: str, capacityUtilization: float, timeUtilization: float, coverageUtilization: float):
+        self.tripId = tripId
+        self.shipments = shipments
+        self.mstDistance = mstDistance
+        self.tripTime = tripTime
+        self.vehicleType = vehicleType
+        self.capacityUtilization = capacityUtilization
+        self.timeUtilization = timeUtilization
+        self.coverageUtilization = coverageUtilization
+
+    def __repr__(self):
+        return (f"Trip(tripId={self.tripId}, shipments={self.shipments}, "
+                f"mstDistance={self.mstDistance}, tripTime={self.tripTime}, vehicleType={self.vehicleType}, "
+                f"capacityUtilization={self.capacityUtilization}, timeUtilization={self.timeUtilization}, "
+                f"coverageUtilization={self.coverageUtilization})")
 
 @app.route("/")
 def home():
@@ -118,6 +119,7 @@ def predict():
     output_csv_path = '/content/Optimized_Trips.csv'
     optimized_trips_df.to_csv(output_csv_path, index=False)
 
+    trips = parse_csv_to_trips("Optimized_Trips.csv")
 
 
 
@@ -212,7 +214,7 @@ def predict():
     #     ).__dict__
     # ]
 
-    # return jsonify(trips)
+    return jsonify(trips)
 
 if __name__ == "__main__":
     app.run(debug=True)
@@ -356,3 +358,58 @@ def optimize_trips_clustering(shipments_df, vehicle_df, facility):
     # End for each timeslot
 
     return pd.DataFrame(trips)
+
+def parse_csv_to_trips(csv_file_path: str) -> List[Trip]:
+    trips = defaultdict(list)
+    current_trip_data = {}
+
+    with open(csv_file_path, mode='r') as file:
+        reader = csv.reader(file)
+        header = next(reader)  # Skip the header
+
+        for row in reader:
+            # Extract data from each row
+            tripId = row[0]
+            shipmentId = int(row[1])
+            latitude = float(row[2])
+            longitude = float(row[3])
+            timeSlot = row[4]
+            mstDistance = float(row[5])
+            tripTime = float(row[6])
+            vehicleType = row[7]
+            capacityUtilization = float(row[8])
+            timeUtilization = float(row[9])
+            coverageUtilization = float(row[10])
+
+            # Create a Shipment object
+            shipment = Shipment(shipmentId, (latitude, longitude), timeSlot)
+
+            # Create or append to the Trip data
+            if tripId not in current_trip_data:
+                current_trip_data[tripId] = {
+                    'shipments': [],
+                    'mstDistance': mstDistance,
+                    'tripTime': tripTime,
+                    'vehicleType': vehicleType,
+                    'capacityUtilization': capacityUtilization,
+                    'timeUtilization': timeUtilization,
+                    'coverageUtilization': coverageUtilization
+                }
+            current_trip_data[tripId]['shipments'].append(shipment)
+
+        # Convert dictionary to list of Trip objects
+        trip_list = []
+        for tripId, data in current_trip_data.items():
+            trip = Trip(
+                tripId=tripId,
+                shipments=data['shipments'],
+                mstDistance=data['mstDistance'],
+                tripTime=data['tripTime'],
+                vehicleType=data['vehicleType'],
+                capacityUtilization=data['capacityUtilization'],
+                timeUtilization=data['timeUtilization'],
+                coverageUtilization=data['coverageUtilization']
+            )
+            trip_list.append(trip)
+
+    return trip_list
