@@ -2,20 +2,47 @@ from flask import Flask, request, jsonify
 import pandas as pd
 from typing import List, Dict
 import os
-import requests
+# import requests
 import pandas as pd
-import time
+# import time
 import numpy as np
 import math
 from geopy.distance import geodesic
 # import folium
-from folium.plugins import MarkerCluster
+# from folium.plugins import MarkerCluster
 import random
 
 app = Flask(__name__)
 
 UPLOAD_FOLDER = "uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+
+
+class Trip:
+    def _init_(self, trip_id, shipment_ids, latitudes, longitudes, time_slot, num_shipments, mst_dist, trip_time, vehicle_type):
+        self.trip_id = trip_id
+        self.shipment_ids = shipment_ids
+        self.latitudes = latitudes
+        self.longitudes = longitudes
+        self.time_slot = time_slot
+        self.num_shipments = num_shipments
+        self.mst_dist = mst_dist
+        self.trip_time = trip_time
+        self.vehicle_type = vehicle_type
+
+    def to_dict(self):
+        """Convert Trip object to dictionary for DataFrame conversion."""
+        return {
+            'trip_id': self.trip_id,
+            'shipment_ids': self.shipment_ids,
+            'latitudes': self.latitudes,
+            'longitudes': self.longitudes,
+            'time_slot': self.time_slot,
+            'num_shipments': self.num_shipments,
+            'mst_dist': self.mst_dist,
+            'trip_time': self.trip_time,
+            'vehicle_type': self.vehicle_type
+        }
 
 # class Shipment:
 #     def __init__(self, shipment_id, latitude, longitude, time):
