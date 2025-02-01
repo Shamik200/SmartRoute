@@ -8,7 +8,7 @@ import time
 import numpy as np
 import math
 from geopy.distance import geodesic
-import folium
+# import folium
 from folium.plugins import MarkerCluster
 import random
 
